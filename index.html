@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find Your Bowling Stats — BLS (Trial)</title>
+<style>
+  :root{--bg:#0f1420;--card:#182032;--card2:#1e2740;--line:#2a3552;--text:#eef1f8;--muted:#9aa7c2;--accent:#f5b301;--green:#3ecf8e;--danger:#ff6b6b}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+  .wrap{max-width:720px;margin:0 auto;padding:22px 16px 60px}
+  h1{font-size:27px;margin:0 0 4px} h1 .ball{color:var(--accent)}
+  .sub{color:var(--muted);font-size:14px;line-height:1.5}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:16px}
+  .card h2{font-size:16px;margin:0 0 10px}
+  label{display:block;color:var(--muted);font-size:13px;margin:12px 0 5px}
+  input,textarea{width:100%;background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:16px}
+  textarea{min-height:100px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+  .search{font-size:17px;padding:14px}
+  button{background:var(--accent);color:#171106;border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer;font-size:14px}
+  button.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+  button.green{background:var(--green);color:#062015;width:100%;margin-top:14px;padding:13px;font-size:15px}
+  .centerCard{display:block;width:100%;text-align:left;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:10px;cursor:pointer;color:var(--text)}
+  .centerCard:hover{border-color:var(--accent)}
+  .centerCard .n{font-size:18px;font-weight:800}
+  .centerCard .s{color:var(--muted);font-size:13px;margin-top:3px}
+  .bowlerRow{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin-top:8px;cursor:pointer;color:var(--text)}
+  .bowlerRow:hover{border-color:var(--accent)}
+  .bowlerRow .n{font-size:16px;font-weight:700}
+  .bowlerRow .s{color:var(--muted);font-size:12px;margin-top:2px}
+  .avgBadge{background:var(--accent);color:#171106;font-weight:800;border-radius:8px;padding:5px 9px;font-size:14px;white-space:nowrap}
+  .avgBadge small{display:block;font-size:9px;font-weight:700;text-align:center}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .chips button{background:transparent;color:var(--muted);border:1px solid var(--line)}
+  .chips button.on{background:var(--accent);color:#171106;border-color:var(--accent)}
+  .msg{font-size:14px;margin-top:12px;line-height:1.5}
+  .msg.ok{color:var(--green)} .msg.err{color:var(--danger)} .msg.warn{color:var(--accent)}
+  .big{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}
+  .hero{flex:1;min-width:180px;background:linear-gradient(135deg,#2a2110,#1e2740);border:1px solid var(--accent);border-radius:14px;padding:18px;text-align:center}
+  .hero .k{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+  .hero .v{font-size:46px;font-weight:900;color:var(--accent);line-height:1.1}
+  .hero .s{color:var(--muted);font-size:13px}
+  .mini{flex:1;min-width:120px;background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center}
+  .mini .k{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  .mini .v{font-size:28px;font-weight:800;margin-top:2px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:12px}
+  table{border-collapse:collapse;width:100%;font-size:14px;margin-top:8px}
+  th,td{padding:8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{color:var(--muted);font-size:12px;text-transform:uppercase}
+  td.num,th.num{text-align:right}
+  tr.me td{color:var(--accent);font-weight:700}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .hidden{display:none}
+  details{margin-top:18px} summary{cursor:pointer;color:var(--muted);font-size:14px}
+  footer{color:var(--muted);font-size:12px;margin-top:24px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span class="ball">●</span> Find Your Bowling Stats</h1>
+  <div class="sub">Find your bowling center, tap your name — your average, high game and high series are already loaded from your league's BLS stats. Nothing to sign up for.</div>
+
+  <!-- STEP 1: CENTER -->
+  <div style="background:#2a2110;border:1px solid #f5b301;border-radius:10px;padding:10px 12px;margin-top:14px;font-size:13px;color:#e8dfc8">TRIAL PREVIEW — loaded with a real sample league (Ashwaubenon Bowling Alley). Anything you import in this trial is saved only in your own browser.</div>
+  <div class="card" id="centerCard">
+    <h2>1 · Find your bowling center</h2>
+    <input class="search" id="centerSearch" type="search" placeholder="Search bowling centers…">
+    <div id="centerList"></div>
+    <div class="msg" id="centerMsg"></div>
+  </div>
+
+  <!-- STEP 2: YOURSELF -->
+  <div class="card hidden" id="selfCard">
+    <div class="row">
+      <h2 id="selfTitle" style="margin:0">2 · Tap your name</h2>
+      <button class="ghost" id="backCenters">← Centers</button>
+    </div>
+    <input class="search" id="nameSearch" type="search" placeholder="Search your name…" style="margin-top:12px">
+    <div class="chips" id="leagueChips"></div>
+    <div id="bowlerList"></div>
+    <div class="msg" id="selfMsg"></div>
+  </div>
+
+  <!-- STEP 3: YOUR STATS -->
+  <div id="statsCard" class="hidden">
+    <div class="card">
+      <div class="row">
+        <h2 id="dName" style="margin:0"></h2>
+        <button class="ghost" id="notMe">Not you? Change</button>
+      </div>
+      <div class="sub" id="dLeague"></div>
+      <div class="big">
+        <div class="hero"><div class="k">Current average</div><div class="v" id="dAvg">—</div><div class="s" id="dAvgSub"></div></div>
+        <div class="mini"><div class="k">High game</div><div class="v" id="dHG">—</div><div class="s">season best</div></div>
+        <div class="mini"><div class="k">High series</div><div class="v" id="dHS">—</div><div class="s">season best</div></div>
+      </div>
+      <div class="msg warn" id="hgNote"></div>
+      <div class="grid" id="dGrid"></div>
+      <div class="msg ok" id="rememberNote"></div>
+    </div>
+    <div class="card">
+      <h2>League leaderboard — top averages</h2>
+      <div style="overflow-x:auto"><table id="lbTbl"></table></div>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <details>
+    <summary>League admin — load / refresh a center's BLS stats</summary>
+    <div class="card">
+      <h2>Import a BLS export</h2>
+      <p class="sub">In BLS: <b>Reports → Bowler Reports → Export</b> (CSV/delimited — this export includes each bowler's <b>high game and high series</b>), or export the standing sheet as HTML, or paste standing-sheet text. Name the bowling center and league, import once, and every bowler at that center can find themselves. Re-import after league night to refresh everyone's stats.</p>
+      <label>Admin key</label>
+      <input id="admKey" type="password" placeholder="Admin key">
+      <label>Bowling center</label>
+      <input id="admCenter" type="text" placeholder="e.g. Ashwaubenon Bowling Alley">
+      <label>League name</label>
+      <input id="admLeague" type="text" placeholder="e.g. Tuesday Night Mixed">
+      <label>Export file</label>
+      <input id="admFile" type="file" accept=".csv,.txt,.tsv,.html,.htm" style="padding:8px">
+      <label>…or paste the export / standing-sheet text</label>
+      <textarea id="admText" placeholder="Paste BLS export text here"></textarea>
+      <button class="green" id="admBtn">Import stats</button>
+      <div class="msg" id="admMsg"></div>
+    </div>
+  </details>
+
+  <footer>Your stats are loaded automatically from your league's latest BLS upload — when your secretary's newest stats go in, yours update too. High game / high series show when the upload is the BLS Bowler Report export; a standing sheet carries averages, pins and games only, so those two show “—” until a Bowler Report is loaded.</footer>
+</div>
+
+<script>var SEED_CSV = "Name,Team,Pins,Games,True Average\nBri Cubito,Stary Photography,5060,24,210.83\nMorgan Greene,Stary Photography,3795,18,210.83\nLexi Cubito,Stary Photography,4268,24,177.83\nLiz Gretzon,Stary Photography,3225,21,153.57\nErin Kent,Stary Photography,1112,6,185.33\nDiane Nejedlo,McGuire's Sports Bar,2289,15,152.60\nIsabell Iwanski,McGuire's Sports Bar,968,6,161.33\nTara Silbernagel,McGuire's Sports Bar,3805,21,181.19\nRita Bostedt,McGuire's Sports Bar,3286,18,182.56\nBecky Erdmann,McGuire's Sports Bar,3200,18,177.78\nRachel Huben,McGuire's Sports Bar,1755,9,195.00\nCrystal Maloney,McGuire's Sports Bar,878,6,146.33\nBeth Polomis,Simonet's,4709,24,196.21\nSally Nolan,Simonet's,3935,24,163.96\nWendy LaFave,Simonet's,4258,24,177.42\nKim Hoffmann,Simonet's,4731,24,197.13\nHeather Johnson,Simonet's,0,0,\nLu Krause,BS Bowling,3768,24,157.00\nDonna DiTrani,BS Bowling,4869,24,202.88\nMichelle Bartoletti,BS Bowling,3669,21,174.71\nCourtney Coppens,BS Bowling,2268,15,151.20\nBillie Bisick,BS Bowling,1111,9,123.44\nRachel Schmit,BS Bowling,0,0,\nNoreen VanDenBerg,BS Bowling,0,0,\nCarly Fifarek,Dolls w/Balls-Susie's Pro Sho,4244,24,176.83\nSue Olson,Dolls w/Balls-Susie's Pro Sho,4366,24,181.92\nJenny Moldenhauer,Dolls w/Balls-Susie's Pro Sho,4881,24,203.38\nKessa Clark,Dolls w/Balls-Susie's Pro Sho,0,0,\nTraci Brown,Dolls w/Balls-Susie's Pro Sho,0,0,\nMissy Frisque,Dolls w/Balls-Susie's Pro Sho,444,3,148.00\nKathy Doxtater,Kirsch Tax Service,4361,24,181.71\nLinda Peterson,Kirsch Tax Service,3681,21,175.29\nKim Felton,Kirsch Tax Service,4180,24,174.17\nCassie Pulczinski,Kirsch Tax Service,3390,18,188.33\nLinda Prokash,Kirsch Tax Service,0,0,\nSamyah Doxtater-Wills,Kirsch Tax Service,532,3,177.33\nMaggie Haines,Substitute,998,6,166.33\nMaeghan Herbst,Substitute,1237,6,206.17\nJeanne Simons,Substitute,1677,9,186.33\nAmanda Olesewski,,0,0,\nShannon Puchalla,,0,0,\nCaitlin Polarek,,0,0,\nAshley Brunette,,0,0,\nShell Moens,,0,0,\nMary Laurent,,0,0,\nHolly Smith,,0,0,\nValery Collins,,0,0,\nShari Kirsch,,0,0,\nAmber Edges,,0,0,\nBeth Oginski,,0,0,\nJanet Smith,,0,0,\nCarol Diener,,0,0,\nCarol Cordle,,0,0,\nBridget Helton,,0,0,\nCourtney Simons,,0,0,\n";</script>
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+function cleanNum(v){
+  if(v===null||v===undefined) return null;
+  var s=String(v).replace(/[$,]/g,"").replace(/^bk/i,"").trim();
+  if(s===""||s==="-"||/^v\d+$/i.test(s)) return null;
+  var n=parseFloat(s);
+  return isNaN(n)?null:n;
+}
+function normName(n){
+  return String(n||"").toLowerCase().replace(/[^a-z ]/g," ").replace(/\s+/g," ").trim();
+}
+function flipName(n){
+  // "Cubito, Bri" / "Cubito, Bri M." -> "Bri Cubito" ; leaves "Bri Cubito" alone
+  var parts=String(n||"").split(",");
+  if(parts.length>=2){
+    var last=parts[0].trim();
+    var first=parts.slice(1).join(",").trim().replace(/\s+[A-Z]\.$/,"").trim();
+    return (first+" "+last).trim();
+  }
+  return String(n||"").trim();
+}
+function splitCombined(v){
+  // "5060 24", "5060/24", "5060 & 24" -> [5060,24]
+  if(v===null||v===undefined) return [null,null];
+  var nums=String(v).match(/\d+(?:\.\d+)?/g);
+  if(!nums) return [null,null];
+  return [cleanNum(nums[0]), nums.length>1?cleanNum(nums[1]):null];
+}
+
+/* ---------- CSV / delimited parsing ---------- */
+function parseDelimitedRaw(text, delim){
+  var rows=[], row=[], cur="", inQ=false, i, c;
+  for(i=0;i<text.length;i++){
+    c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else inQ=false; }
+      else cur+=c;
+    }else{
+      if(c==='"') inQ=true;
+      else if(c===delim){ row.push(cur); cur=""; }
+      else if(c==="\n"){ row.push(cur); rows.push(row); row=[]; cur=""; }
+      else if(c==="\r"){ /* skip */ }
+      else cur+=c;
+    }
+  }
+  row.push(cur); rows.push(row);
+  return rows.filter(function(r){ return r.some(function(x){ return String(x).trim()!==""; }); });
+}
+function detectDelimiter(text){
+  var lines=text.split(/\r?\n/).filter(function(l){return l.trim();}).slice(0,5);
+  var cands=["\t",";", "|", ","], best=",", bestScore=-1;
+  cands.forEach(function(d){
+    var counts=lines.map(function(l){ return l.split(d).length; });
+    var min=Math.min.apply(null,counts), score=min>1?min:0;
+    if(score>bestScore){ bestScore=score; best=d; }
+  });
+  return best;
+}
+var HEADER_MAP=[
+  ["name",        /lastname|bowler'?s?\s*name|(^|\s)name$|^bowler$|^member$/i],
+  ["team",        /team/i],
+  ["id",          /^(bowler'?s?\s*)?id|member\s*id|bowler\s*#|usbc/i],
+  ["pinsGames",   /pins.*games/i],
+  ["avgHdcp",     /(ave|avg).*?(hdcp|hcp)/i],
+  ["highGameH",   /high\s*hdcp\s*game/i],
+  ["highSeriesH", /high\s*hdcp\s*(series|sers)/i],
+  ["highGame",    /high\s+(?!hdcp)(scratch\s*)?game|^hg$/i],
+  ["highSeries",  /high\s+(?!hdcp)(scratch\s*)?(series|sers)/i],
+  ["bookAvg",     /book\s*(avg|average)/i],
+  ["avg",         /true\s*average|current\s*ave|average|^avg/i],
+  ["hdcp",        /hdcp|hcp|handicap/i],
+  ["pins",        /pins|pinfall/i],
+  ["games",       /games|^gms$/i],
+  ["points",      /points|^pts$/i]
+];
+function mapHeaders(headers){
+  var map={}, used={};
+  headers.forEach(function(h,idx){
+    var label=String(h||"").trim();
+    if(!label) return;
+    for(var i=0;i<HEADER_MAP.length;i++){
+      var key=HEADER_MAP[i][0];
+      if(used[key]) continue;
+      if(key==="name" && /team/i.test(label)) continue;
+      if(HEADER_MAP[i][1].test(label)){ map[key]=idx; used[key]=true; break; }
+    }
+  });
+  return map;
+}
+function rowToBowler(cells, map){
+  function get(k){ return map[k]!==undefined?cells[map[k]]:undefined; }
+  var b={ name:"", team:"", id:"", games:null, pins:null, avg:null, hdcp:null,
+          bookAvg:null, highGame:null, highSeries:null, highGameH:null, highSeriesH:null, points:null, extra:{} };
+  var rawName=get("name");
+  if(rawName!==undefined) b.name=flipName(String(rawName).trim());
+  var team=get("team"); if(team!==undefined) b.team=String(team).trim();
+  var id=get("id"); if(id!==undefined) b.id=String(id).trim();
+  b.games=cleanNum(get("games")); b.pins=cleanNum(get("pins"));
+  b.avg=cleanNum(get("avg")); b.hdcp=cleanNum(get("hdcp"));
+  b.bookAvg=cleanNum(get("bookAvg")); b.points=cleanNum(get("points"));
+  b.highGame=cleanNum(get("highGame")); b.highSeries=cleanNum(get("highSeries"));
+  b.highGameH=cleanNum(get("highGameH")); b.highSeriesH=cleanNum(get("highSeriesH"));
+  if(map.pinsGames!==undefined){ var pg=splitCombined(get("pinsGames")); if(b.pins===null)b.pins=pg[0]; if(b.games===null)b.games=pg[1]; }
+  if(map.avgHdcp!==undefined){ var ah=splitCombined(get("avgHdcp")); if(b.avg===null)b.avg=ah[0]; if(b.hdcp===null)b.hdcp=ah[1]; }
+  if(b.avg===null && b.pins!==null && b.games) b.avg=Math.round((b.pins/b.games)*100)/100;
+  return b;
+}
+function parseDelimited(text){
+  var delim=detectDelimiter(text);
+  var rows=parseDelimitedRaw(text, delim);
+  if(rows.length<2) return { bowlers:[], format:"delimited", error:"That file only has "+rows.length+" line(s) — a BLS bowler report export should have one row per bowler." };
+  var headers=rows[0];
+  var map=mapHeaders(headers);
+  if(map.name===undefined){
+    return { bowlers:[], format:"delimited", error:"I couldn't find a Name column in that file. In BLS, export the Bowler Report with the field titles turned on, or use the standing sheet (HTML / paste) instead." };
+  }
+  var out=[];
+  for(var i=1;i<rows.length;i++){
+    var b=rowToBowler(rows[i], map);
+    if(b.name) out.push(b);
+  }
+  return { bowlers:out, format:"BLS bowler report ("+(delim==="\t"?"tab":delim===";"?"semicolon":delim==="|"?"pipe":"comma")+"-delimited)", error:null };
+}
+
+/* ---------- BLS standing sheet text parsing ---------- */
+function parseAverageList(text){
+  var start=text.search(/Average List of All Members/i);
+  if(start<0) return null;
+  var seg=text.slice(start);
+  var end=seg.search(/BLS-\d{4}|Page \d+ of \d+/i);
+  if(end>0) seg=seg.slice(0,end);
+  // entries: "Last, First M., 5060, 24, 210.83," — zero-game entries have no average
+  var re=/([A-Z][^,0-9]+?,\s*[^,0-9]+?),\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*(\d+(?:\.\d+)?))?/g;
+  var out=[], m;
+  while((m=re.exec(seg))!==null){
+    var name=flipName(m[1].replace(/\s+/g," ").trim());
+    if(!name || /name/i.test(name)) continue;
+    var pins=cleanNum(m[2]), games=cleanNum(m[3]), avg=cleanNum(m[4]);
+    if(avg===null && pins!==null && games) avg=Math.round((pins/games)*100)/100;
+    out.push({ name:name, team:"", id:"", games:games, pins:pins, avg:avg, hdcp:null,
+               bookAvg:null, highGame:null, highSeries:null, highGameH:null, highSeriesH:null, points:null, extra:{} });
+  }
+  return out.length?out:null;
+}
+function assignTeamsFromText(text, bowlers){
+  // Team headers look like "3 - Simonet's" / "3 - Simonet's, Lane 28 Avg=733"
+  var headerRe=/(\d+)\s*-\s*([A-Z][^\n,]{2,40}?)(?=,?\s+Lane\s+\d+|\n|$)/g;
+  var heads=[], m;
+  while((m=headerRe.exec(text))!==null){
+    heads.push({ team:m[2].trim(), pos:m.index });
+  }
+  if(!heads.length) return;
+  function sigTokens(s){ return normName(s).split(" ").filter(function(t){ return t.length>1; }); }
+  function inSegment(segTokens, name){
+    var toks=sigTokens(name), si=0;
+    for(var i=0;i<segTokens.length && si<toks.length;i++){ if(segTokens[i]===toks[si]) si++; }
+    return si===toks.length && toks.length>0;
+  }
+  heads.forEach(function(h,i){
+    var seg=text.slice(h.pos, i+1<heads.length?heads[i+1].pos:undefined);
+    var segTokens=sigTokens(seg);
+    var isSub=/temporary substitutes/i.test(seg);
+    bowlers.forEach(function(b){
+      if(b.team) return;
+      if(inSegment(segTokens, b.name)) b.team=isSub?"Substitute":h.team;
+    });
+  });
+}
+function extractTitle(text){
+  var m=text.match(/^\s*(.+202\d[-\d]*)\s*$/m);
+  var w=text.match(/Week\s+\d+\s+of\s+\d+/i);
+  var parts=[];
+  if(m) parts.push(m[1].trim());
+  if(w) parts.push(w[0].replace(/\s+/g," "));
+  return parts.join(" — ");
+}
+function parseStandingSheetText(text){
+  var bowlers=parseAverageList(text);
+  if(!bowlers) return { bowlers:[], format:"standing sheet", error:"I couldn't find the 'Average List of All Members' section in that text. Copy the whole standing sheet (all pages) and try again, or use the CSV bowler report export." };
+  assignTeamsFromText(text, bowlers);
+  return { bowlers:bowlers, format:"BLS standing sheet", title:extractTitle(text), error:null };
+}
+function htmlToText(html){
+  var doc=new DOMParser().parseFromString(html,"text/html");
+  doc.querySelectorAll("br,tr,p,div,table,h1,h2,h3,li").forEach(function(el){ el.appendChild(doc.createTextNode("\n")); });
+  return (doc.body?doc.body.textContent:doc.textContent||"").replace(/[ \t]+/g," ");
+}
+function parseAny(text, filename){
+  var isHtml=/\.html?$/i.test(filename||"") || /<html|<table/i.test(text);
+  var plain=isHtml?htmlToText(text):text;
+  if(/Average List of All Members/i.test(plain)){
+    var ss=parseStandingSheetText(plain);
+    if(ss.bowlers.length) return ss;
+  }
+  if(!isHtml){
+    var d=parseDelimited(text);
+    if(d.bowlers.length) return d;
+    var ss2=parseStandingSheetText(text);
+    if(ss2.bowlers.length) return ss2;
+    return d.error?d:ss2;
+  }
+  return parseStandingSheetText(plain);
+}
+if(typeof module!=="undefined" && module.exports){
+  module.exports={ parseAny:parseAny, parseDelimited:parseDelimited, parseStandingSheetText:parseStandingSheetText, parseAverageList:parseAverageList, flipName:flipName, cleanNum:cleanNum };
+}
+
+</script>
+<script>
+"use strict";
+/*
+ * Trial data layer — the same logic as app/server.js, running entirely in
+ * the browser so Steve can try the real flow from a public page.
+ * Data starts as the sample league; anything imported in the trial is saved
+ * only in this browser (localStorage), never uploaded anywhere.
+ * SEED_CSV and parseAny are injected/provided by the scripts before this one.
+ */
+var TRIAL_ADMIN_KEY = "trial-admin";
+var TRIAL_DB_KEY = "bls_trial_db_v1";
+var trialDb = null;
+
+function tNorm(s) { return String(s || "").toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim(); }
+function tUid() { return Math.random().toString(16).slice(2) + Date.now().toString(16); }
+function tSave() { try { localStorage.setItem(TRIAL_DB_KEY, JSON.stringify(trialDb)); } catch (e) {} }
+function tLoad() {
+  if (trialDb) return;
+  try { trialDb = JSON.parse(localStorage.getItem(TRIAL_DB_KEY)); } catch (e) { trialDb = null; }
+  if (!trialDb || !Array.isArray(trialDb.leagues)) {
+    trialDb = { leagues: [], bowlers: [] };
+    tImport({ centerName: "Ashwaubenon Bowling Alley", leagueName: "Women's Classic 2026-27 (sample)", text: SEED_CSV, filename: "seed-league.csv" });
+    tSave();
+  }
+}
+function tImport(opts) {
+  var res = parseAny(opts.text, opts.filename || "");
+  if (res.error || !res.bowlers.length) return { ok: false, error: res.error || "No bowlers found in that data." };
+  var name = (opts.leagueName || res.title || "My League").trim();
+  var center = (opts.centerName || "").trim();
+  var league = null;
+  for (var i = 0; i < trialDb.leagues.length; i++) {
+    var l = trialDb.leagues[i];
+    if (tNorm(l.name) === tNorm(name) && tNorm(l.center) === tNorm(center)) { league = l; break; }
+  }
+  if (!league) { league = { id: tUid(), name: name, center: center, createdAt: Date.now() }; trialDb.leagues.push(league); }
+  league.updatedAt = Date.now();
+  league.sourceFormat = res.format;
+  var added = 0, updated = 0;
+  res.bowlers.forEach(function (b) {
+    var row = null;
+    for (var i = 0; i < trialDb.bowlers.length; i++) {
+      var x = trialDb.bowlers[i];
+      if (x.leagueId === league.id && tNorm(x.name) === tNorm(b.name)) { row = x; break; }
+    }
+    if (!row) { row = { id: tUid(), leagueId: league.id }; trialDb.bowlers.push(row); added++; } else updated++;
+    row.name = b.name; row.team = b.team || row.team || ""; row.blsId = b.id || row.blsId || "";
+    row.games = b.games; row.pins = b.pins; row.avg = b.avg; row.hdcp = b.hdcp; row.bookAvg = b.bookAvg;
+    row.highGame = b.highGame; row.highSeries = b.highSeries; row.highGameH = b.highGameH;
+    row.highSeriesH = b.highSeriesH; row.points = b.points;
+  });
+  tSave();
+  return { ok: true, leagueId: league.id, leagueName: league.name, center: league.center, added: added, updated: updated, total: res.bowlers.length, format: res.format };
+}
+function tPublic(b, league) {
+  return { id: b.id, name: b.name, team: b.team || "", league: league ? league.name : "", leagueId: b.leagueId,
+    games: b.games, pins: b.pins, avg: b.avg, hdcp: b.hdcp, bookAvg: b.bookAvg, highGame: b.highGame,
+    highSeries: b.highSeries, highGameH: b.highGameH, highSeriesH: b.highSeriesH, points: b.points };
+}
+function tLeagueOf(b) {
+  for (var i = 0; i < trialDb.leagues.length; i++) if (trialDb.leagues[i].id === b.leagueId) return trialDb.leagues[i];
+  return null;
+}
+function tRoute(method, path, body) {
+  var q = "";
+  var qi = path.indexOf("?");
+  if (qi >= 0) { q = path.slice(qi + 1); path = path.slice(0, qi); }
+  var params = new URLSearchParams(q);
+
+  if (method === "GET" && path === "/api/centers") {
+    var by = {};
+    trialDb.leagues.forEach(function (l) {
+      var key = tNorm(l.center || "Other");
+      if (!by[key]) by[key] = { name: l.center || "Other", leagues: 0, bowlers: 0, updatedAt: 0 };
+      by[key].leagues++;
+      by[key].bowlers += trialDb.bowlers.filter(function (b) { return b.leagueId === l.id; }).length;
+      by[key].updatedAt = Math.max(by[key].updatedAt, l.updatedAt || 0);
+    });
+    return { status: 200, body: Object.values(by).sort(function (a, b) { return a.name.localeCompare(b.name); }) };
+  }
+  if (method === "GET" && path === "/api/center-bowlers") {
+    var center = tNorm(params.get("center") || "");
+    var ids = {};
+    trialDb.leagues.forEach(function (l) { if (tNorm(l.center || "Other") === center) ids[l.id] = true; });
+    var list = trialDb.bowlers.filter(function (b) { return ids[b.leagueId]; }).map(function (b) {
+      var l = tLeagueOf(b);
+      return { id: b.id, name: b.name, team: b.team || "", league: l ? l.name : "", leagueId: b.leagueId, avg: b.avg, games: b.games };
+    }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+    return { status: 200, body: list };
+  }
+  if (method === "GET" && path.indexOf("/api/bowler/") === 0) {
+    var id = path.split("/")[3];
+    var bowler = null;
+    trialDb.bowlers.forEach(function (b) { if (b.id === id) bowler = b; });
+    if (!bowler) return { status: 404, body: { error: "Bowler not found" } };
+    var league = tLeagueOf(bowler);
+    var peers = trialDb.bowlers.filter(function (x) { return x.leagueId === bowler.leagueId && x.games > 0 && x.avg !== null; })
+      .sort(function (a, b) { return (b.avg || 0) - (a.avg || 0); });
+    var idx = -1;
+    peers.forEach(function (x, i) { if (x.id === bowler.id) idx = i; });
+    return { status: 200, body: {
+      bowler: tPublic(bowler, league),
+      league: league ? { id: league.id, name: league.name, center: league.center || "", updatedAt: league.updatedAt || null, sourceFormat: league.sourceFormat || "" } : null,
+      rank: idx >= 0 ? idx + 1 : null, rankedBowlers: peers.length,
+      leaderboard: peers.slice(0, 10).map(function (x) { return tPublic(x, league); })
+    } };
+  }
+  if (method === "GET" && path === "/api/leagues") {
+    return { status: 200, body: trialDb.leagues.map(function (l) {
+      return { id: l.id, name: l.name, center: l.center || "", updatedAt: l.updatedAt || null,
+        bowlers: trialDb.bowlers.filter(function (b) { return b.leagueId === l.id; }).length };
+    }) };
+  }
+  if (method === "POST" && path === "/api/admin/import") {
+    if (!body || body.adminKey !== TRIAL_ADMIN_KEY) return { status: 403, body: { error: "Wrong admin key (trial key: trial-admin)" } };
+    if (!body.data) return { status: 400, body: { error: "No data supplied" } };
+    var r = tImport({ centerName: body.centerName, leagueName: body.leagueName, text: body.data, filename: body.filename });
+    return { status: r.ok ? 200 : 422, body: r };
+  }
+  return { status: 404, body: { error: "Not found" } };
+}
+/* The app's own fetch-based api() is removed in this trial page; this is it. */
+function api(method, path, body) {
+  return new Promise(function (resolve) { tLoad(); resolve(tRoute(method, path, body)); });
+}
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { api: api, _setDb: function (d) { trialDb = d; }, _getDb: function () { return trialDb; } };
+}
+
+</script>
+<script>
+"use strict";
+var $=function(id){return document.getElementById(id);};
+function esc(s){return String(s===null||s===undefined?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
+/* api() is provided by the trial data layer above */
+function fmtInt(v){return v===null||v===undefined?"—":Math.round(v).toLocaleString("en-US");}
+
+var centers=[], centerBowlers=[], curCenter="", leagueFilter="";
+
+/* ----- step 1: centers ----- */
+function loadCenters(){
+  return api("GET","/api/centers").then(function(r){
+    centers=r.body||[];
+    renderCenters();
+  });
+}
+function renderCenters(){
+  var q=$("centerSearch").value.toLowerCase().trim();
+  var list=centers.filter(function(c){return !q||c.name.toLowerCase().indexOf(q)>=0;});
+  $("centerList").innerHTML=list.map(function(c){
+    var upd=c.updatedAt?new Date(c.updatedAt).toLocaleDateString("en-US",{month:"short",day:"numeric"}):"";
+    return '<button class="centerCard" data-center="'+esc(c.name)+'"><div class="n">'+esc(c.name)+'</div><div class="s">'+c.leagues+' league'+(c.leagues===1?"":"s")+' · '+c.bowlers+' bowlers'+(upd?" · stats updated "+upd:"")+'</div></button>';
+  }).join("") || '<div class="msg warn">No center matches that yet. Centers appear here once a league\'s BLS stats are loaded for them (admin, below).</div>';
+  document.querySelectorAll(".centerCard").forEach(function(el){
+    el.addEventListener("click",function(){ openCenter(el.getAttribute("data-center")); });
+  });
+}
+$("centerSearch").addEventListener("input",renderCenters);
+
+/* ----- step 2: find yourself ----- */
+function openCenter(name){
+  curCenter=name; leagueFilter="";
+  $("selfTitle").textContent="2 · Tap your name — "+name;
+  $("centerCard").classList.add("hidden");
+  $("statsCard").classList.add("hidden");
+  $("selfCard").classList.remove("hidden");
+  $("nameSearch").value="";
+  api("GET","/api/center-bowlers?center="+encodeURIComponent(name)).then(function(r){
+    centerBowlers=r.body||[];
+    renderChips(); renderBowlers();
+  });
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function renderChips(){
+  var leagues=[];
+  centerBowlers.forEach(function(b){ if(leagues.indexOf(b.league)<0) leagues.push(b.league); });
+  var html='<button data-lg="" class="'+(leagueFilter===""?"on":"")+'">All leagues</button>'+leagues.map(function(l){
+    return '<button data-lg="'+esc(l)+'" class="'+(leagueFilter===l?"on":"")+'">'+esc(l)+'</button>';
+  }).join("");
+  $("leagueChips").innerHTML=leagues.length>1?html:"";
+  document.querySelectorAll("#leagueChips button").forEach(function(el){
+    el.addEventListener("click",function(){ leagueFilter=el.getAttribute("data-lg"); renderChips(); renderBowlers(); });
+  });
+}
+function renderBowlers(){
+  var q=$("nameSearch").value.toLowerCase().trim();
+  var list=centerBowlers.filter(function(b){
+    if(leagueFilter && b.league!==leagueFilter) return false;
+    if(q && b.name.toLowerCase().indexOf(q)<0) return false;
+    return true;
+  });
+  $("bowlerList").innerHTML=list.map(function(b){
+    return '<button class="bowlerRow" data-id="'+b.id+'"><span><span class="n">'+esc(b.name)+'</span><span class="s" style="display:block">'+esc(b.team||"")+(b.team?" · ":"")+esc(b.league)+'</span></span>'+(b.avg!==null&&b.games>0?'<span class="avgBadge"><small>AVG</small>'+b.avg.toFixed(2)+'</span>':'<span class="s">no games yet</span>')+'</button>';
+  }).join("") || '<div class="msg warn">No bowler matches that name in this center yet.</div>';
+  document.querySelectorAll(".bowlerRow").forEach(function(el){
+    el.addEventListener("click",function(){ openBowler(el.getAttribute("data-id"), true); });
+  });
+}
+$("nameSearch").addEventListener("input",renderBowlers);
+$("backCenters").addEventListener("click",function(){
+  $("selfCard").classList.add("hidden");
+  $("centerCard").classList.remove("hidden");
+});
+
+/* ----- step 3: your stats ----- */
+function openBowler(id, remember){
+  api("GET","/api/bowler/"+id).then(function(r){
+    if(r.status!==200) return;
+    if(remember){
+      try{ localStorage.setItem("bls_bowler_id", id); }catch(e){}
+    }
+    var b=r.body.bowler, L=r.body.league||{};
+    $("centerCard").classList.add("hidden");
+    $("selfCard").classList.add("hidden");
+    $("statsCard").classList.remove("hidden");
+    $("dName").textContent=b.name;
+    var upd=L.updatedAt?new Date(L.updatedAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"";
+    $("dLeague").textContent=(L.center?L.center+" · ":"")+(L.name||"")+(b.team?" · "+b.team:"")+(upd?" · stats as of "+upd:"");
+    $("dAvg").textContent=b.avg===null?"—":b.avg.toFixed(2);
+    $("dAvgSub").textContent=r.body.rank?("Ranked #"+r.body.rank+" of "+r.body.rankedBowlers+" by average"):"";
+    $("dHG").textContent=b.highGame===null?"—":b.highGame;
+    $("dHS").textContent=b.highSeries===null?"—":b.highSeries;
+    $("hgNote").textContent=(b.highGame===null||b.highSeries===null)
+      ? "High game / series aren't in the data loaded for this league yet (a standing sheet doesn't carry them). They'll show up automatically once the BLS Bowler Report export is loaded."
+      : "";
+    var cells=[["Games",fmtInt(b.games)],["Total pins",fmtInt(b.pins)],["Handicap",b.hdcp===null?"—":b.hdcp],["Book average",b.bookAvg===null?"—":b.bookAvg]];
+    if(b.highGameH!==null) cells.push(["High HDCP game",b.highGameH]);
+    if(b.highSeriesH!==null) cells.push(["High HDCP series",b.highSeriesH]);
+    if(b.points!==null) cells.push(["Points",b.points]);
+    $("dGrid").innerHTML=cells.map(function(c){return '<div class="mini"><div class="k">'+c[0]+'</div><div class="v" style="font-size:22px">'+c[1]+'</div></div>';}).join("");
+    $("rememberNote").textContent=remember?"Saved on this device — next time you open the app, your stats come up straight away.":"";
+    $("lbTbl").innerHTML="<thead><tr><th class='num'>#</th><th>Bowler</th><th>Team</th><th class='num'>Avg</th><th class='num'>High game</th><th class='num'>High series</th></tr></thead><tbody>"+
+      r.body.leaderboard.map(function(x,i){
+        return "<tr class='"+(x.id===b.id?"me":"")+"'><td class='num'>"+(i+1)+"</td><td>"+esc(x.name)+"</td><td>"+esc(x.team||"")+"</td><td class='num'>"+(x.avg===null?"—":x.avg.toFixed(2))+"</td><td class='num'>"+(x.highGame===null?"—":x.highGame)+"</td><td class='num'>"+(x.highSeries===null?"—":x.highSeries)+"</td></tr>";
+      }).join("")+"</tbody>";
+    window.scrollTo({top:0,behavior:"smooth"});
+  });
+}
+$("notMe").addEventListener("click",function(){
+  try{ localStorage.removeItem("bls_bowler_id"); }catch(e){}
+  $("statsCard").classList.add("hidden");
+  $("centerCard").classList.remove("hidden");
+  loadCenters();
+});
+
+/* ----- admin ----- */
+var admFileText="", admFileName="";
+$("admFile").addEventListener("change",function(){
+  var f=$("admFile").files[0]; if(!f) return;
+  var r=new FileReader();
+  r.onload=function(){ admFileText=String(r.result); admFileName=f.name; };
+  r.readAsText(f);
+});
+$("admBtn").addEventListener("click",function(){
+  var m=$("admMsg");
+  var data=admFileText||$("admText").value;
+  if(!$("admCenter").value.trim()){ m.className="msg err"; m.textContent="Name the bowling center first — that's how bowlers find the league."; return; }
+  if(!data.trim()){ m.className="msg err"; m.textContent="Choose an export file or paste the export text first."; return; }
+  api("POST","/api/admin/import",{adminKey:$("admKey").value, centerName:$("admCenter").value, leagueName:$("admLeague").value, data:data, filename:admFileName})
+    .then(function(r){
+      if(r.status===200){
+        m.className="msg ok";
+        m.textContent="Loaded "+r.body.total+" bowlers for “"+r.body.leagueName+"” at "+r.body.center+" ("+r.body.added+" new, "+r.body.updated+" updated). Bowlers can now find the center and tap their name.";
+        loadCenters();
+      } else { m.className="msg err"; m.textContent=(r.body&&r.body.error)||"Import failed."; }
+    });
+});
+
+/* ----- start: remembered bowler goes straight to their stats ----- */
+loadCenters().then(function(){
+  var saved=null;
+  try{ saved=localStorage.getItem("bls_bowler_id"); }catch(e){}
+  if(saved) openBowler(saved, false);
+});
+</script>
+</body>
+</html>
