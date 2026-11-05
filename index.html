@@ -61,7 +61,55 @@
   <div class="sub">Find your bowling center, tap your name — your average, high game and high series are already loaded from your league's BLS stats. Nothing to sign up for.</div>
 
   <!-- STEP 1: CENTER -->
-  <div style="background:#2a2110;border:1px solid #f5b301;border-radius:10px;padding:10px 12px;margin-top:14px;font-size:13px;color:#e8dfc8">TRIAL PREVIEW (v3) — two sample centers are loaded: Ashwaubenon Bowling Alley (a real league, from its BLS standing sheet) and Demo Lanes (sample data showing the full BLS Bowler Report view, where every bowler has a high game and high series). Anything you import in this trial is saved only in your own browser.</div>
+  <div class="card" id="accountCard">
+    <h2>Bowler sign in</h2>
+    <p class="s" style="margin:0 0 10px">Sign up once, tell us which bowler you are, and your stats are just here every time — updated automatically whenever your league's newest BLS stats are loaded.</p>
+    <div id="authForms">
+      <div class="row" style="margin-bottom:10px">
+        <button id="tabSignup" style="flex:1">Sign up</button>
+        <button id="tabLogin" class="ghost" style="flex:1">Log in</button>
+      </div>
+      <div id="signupForm">
+        <label>Your name</label>
+        <input id="suName" type="text" placeholder="e.g. Alex Carter" autocomplete="name">
+        <label>Email</label>
+        <input id="suEmail" type="email" placeholder="you@email.com" autocomplete="email">
+        <label>Password</label>
+        <input id="suPass" type="password" placeholder="6+ characters" autocomplete="new-password">
+        <button id="btnSignup" style="width:100%;margin-top:12px">Create my account</button>
+      </div>
+      <div id="loginForm" style="display:none">
+        <label>Email</label>
+        <input id="liEmail" type="email" placeholder="you@email.com" autocomplete="email">
+        <label>Password</label>
+        <input id="liPass" type="password" placeholder="Your password" autocomplete="current-password">
+        <button id="btnLogin" style="width:100%;margin-top:12px">Log in</button>
+      </div>
+      <div id="authMsg"></div>
+    </div>
+    <div id="claimBox" style="display:none">
+      <p style="margin:0 0 8px"><b>One last step — which bowler are you?</b></p>
+      <label>Your bowling center</label>
+      <select id="claimCenter"></select>
+      <label>Your name on the league roster</label>
+      <select id="claimName"></select>
+      <button id="btnClaim" style="width:100%;margin-top:12px">This is me — link my stats</button>
+      <div id="claimMsg"></div>
+    </div>
+  </div>
+
+  <div class="card" id="myStatsCard" style="display:none">
+    <h2>My stats</h2>
+    <p class="s" id="myStatsUser" style="margin:0 0 6px"></p>
+    <div id="myStatsList"></div>
+    <p class="s" style="margin:10px 0 0">Your stats update automatically when your league's newest BLS stats are loaded — there's nothing for you to upload or refresh.</p>
+    <div class="row" style="margin-top:12px">
+      <button id="btnChangeBowler" class="ghost" style="flex:1">Change which bowler I am</button>
+      <button id="btnLogout" class="ghost" style="flex:1">Log out</button>
+    </div>
+  </div>
+
+  <div style="background:#2a2110;border:1px solid #f5b301;border-radius:10px;padding:10px 12px;margin-top:14px;font-size:13px;color:#e8dfc8">TRIAL PREVIEW (v4) — sign up as a bowler (try it as Demo Lanes' Alex Carter), or just browse the sample leagues below. Anything you do in this trial is saved only in your own browser.</div>
   <div class="card" id="centerCard">
     <h2>1 · Find your bowling center</h2>
     <input class="search" id="centerSearch" type="search" placeholder="Search bowling centers…">
@@ -357,7 +405,7 @@ if(typeof module!=="undefined" && module.exports){
  */
 var TRIAL_ADMIN_KEY = "trial-admin";
 var TRIAL_DB_KEY = "bls_trial_db_v1";
-var SEED_VERSION = 3;
+var SEED_VERSION = 4;
 var SEED_LEAGUE_NAMES = ["Women's Classic 2026-27 (sample)", "Demo League — full stats sample", "Wednesday Demo League"];
 var trialDb = null;
 
@@ -377,11 +425,13 @@ function tLoad() {
   if (trialDb) return;
   try { trialDb = JSON.parse(localStorage.getItem(TRIAL_DB_KEY)); } catch (e) { trialDb = null; }
   if (!trialDb || !Array.isArray(trialDb.leagues) || !Array.isArray(trialDb.bowlers)) {
-    trialDb = { leagues: [], bowlers: [], seedVersion: SEED_VERSION };
+    trialDb = { leagues: [], bowlers: [], users: [], sessions: {}, seedVersion: SEED_VERSION };
     tSeedSamples();
     tSave();
     return;
   }
+  if (!Array.isArray(trialDb.users)) trialDb.users = [];
+  if (!trialDb.sessions || typeof trialDb.sessions !== "object") trialDb.sessions = {};
   if (trialDb.seedVersion !== SEED_VERSION) {
     // refresh ONLY the built-in sample leagues; keep anything the visitor imported
     var doomed = {};
@@ -398,6 +448,7 @@ function resetTrialData() {
   try {
     localStorage.removeItem(TRIAL_DB_KEY);
     localStorage.removeItem("bls_bowler_id");
+    localStorage.removeItem("bls_token");
   } catch (e) {}
   location.reload();
 }
@@ -439,12 +490,95 @@ function tLeagueOf(b) {
   for (var i = 0; i < trialDb.leagues.length; i++) if (trialDb.leagues[i].id === b.leagueId) return trialDb.leagues[i];
   return null;
 }
+/* ----- bowler accounts (trial mirror of the server) ----- */
+function tHashPw(pw, salt) {
+  var h = 5381, s = salt + "::" + String(pw);
+  for (var i = 0; i < s.length; i++) h = (((h << 5) + h) + s.charCodeAt(i)) >>> 0;
+  return h.toString(16);
+}
+function tPublicUser(u) {
+  return { id: u.id, displayName: u.displayName, email: u.email, center: u.center || "", bowlerName: u.bowlerName || "" };
+}
+function tNewSession(userId) {
+  var token = tUid() + tUid();
+  trialDb.sessions[token] = userId;
+  tSave();
+  return token;
+}
+function tAuthUser(params) {
+  var token = params.get("_t") || "";
+  var userId = token && trialDb.sessions[token];
+  if (!userId) return null;
+  var found = null;
+  trialDb.users.forEach(function (u) { if (u.id === userId) found = u; });
+  return found;
+}
+function tMyStats(user) {
+  if (!user.bowlerName) return [];
+  var key = tNorm(user.bowlerName);
+  return trialDb.bowlers.filter(function (b) { return tNorm(b.name) === key; }).map(function (b) {
+    var l = tLeagueOf(b);
+    var peers = trialDb.bowlers.filter(function (x) { return x.leagueId === b.leagueId && x.games > 0 && x.avg !== null; })
+      .sort(function (a, c) { return (c.avg || 0) - (a.avg || 0); });
+    var idx = -1;
+    peers.forEach(function (x, i) { if (x.id === b.id) idx = i; });
+    var pub = tPublic(b, l);
+    pub.center = l ? (l.center || "") : "";
+    pub.updatedAt = l ? (l.updatedAt || null) : null;
+    pub.rank = idx >= 0 ? idx + 1 : null;
+    pub.rankedBowlers = peers.length;
+    return pub;
+  }).sort(function (a, b) { return (b.games || 0) - (a.games || 0); });
+}
 function tRoute(method, path, body) {
   var q = "";
   var qi = path.indexOf("?");
   if (qi >= 0) { q = path.slice(qi + 1); path = path.slice(0, qi); }
   var params = new URLSearchParams(q);
 
+  if (method === "POST" && path === "/api/signup") {
+    var dn = String((body && body.displayName) || "").trim();
+    var em = String((body && body.email) || "").trim().toLowerCase();
+    var pw = String((body && body.password) || "");
+    if (!dn || !em || pw.length < 6) return { status: 422, body: { error: "Add your name, an email, and a password of 6+ characters." } };
+    var dupe = false;
+    trialDb.users.forEach(function (u) { if (u.email === em) dupe = true; });
+    if (dupe) return { status: 409, body: { error: "That email already has an account — log in instead." } };
+    var salt = tUid().slice(0, 8);
+    var user = { id: tUid(), displayName: dn, email: em, salt: salt, passHash: tHashPw(pw, salt), center: "", bowlerName: "", createdAt: Date.now() };
+    trialDb.users.push(user);
+    var tok = tNewSession(user.id);
+    return { status: 201, body: { token: tok, user: tPublicUser(user) } };
+  }
+  if (method === "POST" && path === "/api/login") {
+    var em2 = String((body && body.email) || "").trim().toLowerCase();
+    var usr = null;
+    trialDb.users.forEach(function (u) { if (u.email === em2) usr = u; });
+    if (!usr) return { status: 401, body: { error: "No account with that email — sign up first." } };
+    if (tHashPw(String((body && body.password) || ""), usr.salt) !== usr.passHash) return { status: 401, body: { error: "Wrong password." } };
+    var tok2 = tNewSession(usr.id);
+    return { status: 200, body: { token: tok2, user: tPublicUser(usr) } };
+  }
+  if (method === "POST" && path === "/api/logout") {
+    var tk = params.get("_t") || "";
+    if (tk && trialDb.sessions[tk]) { delete trialDb.sessions[tk]; tSave(); }
+    return { status: 200, body: { ok: true } };
+  }
+  if (method === "GET" && path === "/api/me") {
+    var me = tAuthUser(params);
+    if (!me) return { status: 401, body: { error: "Not signed in" } };
+    return { status: 200, body: { user: tPublicUser(me), stats: tMyStats(me) } };
+  }
+  if (method === "POST" && path === "/api/me/claim") {
+    var me2 = tAuthUser(params);
+    if (!me2) return { status: 401, body: { error: "Not signed in" } };
+    var bn = String((body && body.bowlerName) || "").trim();
+    if (!bn) return { status: 422, body: { error: "Pick your name from your league's list." } };
+    me2.bowlerName = bn;
+    me2.center = String((body && body.center) || "").trim();
+    tSave();
+    return { status: 200, body: { user: tPublicUser(me2), stats: tMyStats(me2) } };
+  }
   if (method === "GET" && path === "/api/centers") {
     var by = {};
     trialDb.leagues.forEach(function (l) {
@@ -687,12 +821,95 @@ $("admBtn").addEventListener("click",function(){
     });
 });
 
-/* ----- start: remembered bowler goes straight to their stats ----- */
+/* ----- bowler accounts: sign up once, stats are just there ----- */
+function setToken(t){ try{ t?localStorage.setItem("bls_token",t):localStorage.removeItem("bls_token"); }catch(e){} }
+function getToken(){ try{ return localStorage.getItem("bls_token")||""; }catch(e){ return ""; } }
+function fmtDate(ms){ if(!ms) return ""; return new Date(ms).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}); }
+function authErr(id,msg){ var m=$(id); m.className="msg err"; m.textContent=msg; }
+function showClaim(){
+  $("accountCard").style.display=""; $("authForms").style.display="none"; $("claimBox").style.display=""; $("myStatsCard").style.display="none";
+  api("GET","/api/centers").then(function(r){
+    var cs=r.body||[];
+    $("claimCenter").innerHTML=cs.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join("");
+    fillClaimNames();
+  });
+}
+function fillClaimNames(){
+  var c=$("claimCenter").value;
+  if(!c){ $("claimName").innerHTML=""; return; }
+  api("GET","/api/center-bowlers?center="+encodeURIComponent(c)).then(function(r){
+    var seen={}, names=[];
+    (r.body||[]).forEach(function(b){ var k=b.name.toLowerCase(); if(!seen[k]){ seen[k]=1; names.push(b.name); } });
+    names.sort();
+    $("claimName").innerHTML=names.map(function(n){return '<option value="'+esc(n)+'">'+esc(n)+'</option>';}).join("") || '<option value="">(no bowlers loaded at this center yet)</option>';
+  });
+}
+function renderMyStats(me){
+  $("accountCard").style.display="none";
+  $("myStatsCard").style.display="";
+  $("myStatsUser").textContent="Signed in as "+me.user.displayName+" — bowling as "+me.user.bowlerName+(me.user.center?" at "+me.user.center:"");
+  var stats=me.stats||[];
+  if(!stats.length){
+    $("myStatsList").innerHTML='<div class="msg warn">No stats under that name yet — they\'ll appear here on their own as soon as your league\'s BLS stats are loaded.</div>';
+    return;
+  }
+  $("myStatsList").innerHTML=stats.map(function(s){
+    var cells=[["Games",fmtInt(s.games)],["Total pins",fmtInt(s.pins)],["Handicap",fmtInt(s.hdcp)],["Book average",s.bookAvg!==null&&s.bookAvg!==undefined?s.bookAvg.toFixed(2):"—"],["League rank",s.rank?"#"+s.rank+" of "+s.rankedBowlers:"—"]];
+    return '<div style="border-top:1px solid var(--line);padding-top:12px;margin-top:12px">'
+      +'<div class="sub" style="margin:0 0 4px"><b style="color:var(--text);font-size:16px">'+esc(s.league)+'</b>'+(s.center?" · "+esc(s.center):"")+(s.team?" · "+esc(s.team):"")+'</div>'
+      +'<div class="big"><div class="hero"><div class="k">Current average</div><div class="v">'+(s.avg!==null&&s.games>0?s.avg.toFixed(2):"—")+'</div><div class="s">'+(s.updatedAt?"updated "+fmtDate(s.updatedAt):"")+'</div></div>'
+      +'<div class="mini"><div class="k">High game</div><div class="v">'+(s.highGame!==null&&s.highGame!==undefined?s.highGame:"—")+'</div><div class="s">season best</div></div>'
+      +'<div class="mini"><div class="k">High series</div><div class="v">'+(s.highSeries!==null&&s.highSeries!==undefined?s.highSeries:"—")+'</div><div class="s">season best</div></div></div>'
+      +'<div class="grid">'+cells.map(function(c){return '<div class="mini"><div class="k">'+c[0]+'</div><div class="v" style="font-size:22px">'+c[1]+'</div></div>';}).join("")+'</div></div>';
+  }).join("");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function refreshMe(){
+  if(!getToken()) return Promise.resolve(false);
+  return api("GET","/api/me").then(function(r){
+    if(r.status===200){
+      if(r.body.user.bowlerName) renderMyStats(r.body); else showClaim();
+      return true;
+    }
+    setToken("");
+    return false;
+  });
+}
+$("tabSignup").addEventListener("click",function(){ $("signupForm").style.display=""; $("loginForm").style.display="none"; $("tabSignup").className=""; $("tabLogin").className="ghost"; });
+$("tabLogin").addEventListener("click",function(){ $("signupForm").style.display="none"; $("loginForm").style.display=""; $("tabSignup").className="ghost"; $("tabLogin").className=""; });
+$("btnSignup").addEventListener("click",function(){
+  api("POST","/api/signup",{displayName:$("suName").value,email:$("suEmail").value,password:$("suPass").value}).then(function(r){
+    if(r.status===201){ setToken(r.body.token); showClaim(); }
+    else authErr("authMsg",(r.body&&r.body.error)||"Sign up failed.");
+  });
+});
+$("btnLogin").addEventListener("click",function(){
+  api("POST","/api/login",{email:$("liEmail").value,password:$("liPass").value}).then(function(r){
+    if(r.status===200){ setToken(r.body.token); refreshMe(); }
+    else authErr("authMsg",(r.body&&r.body.error)||"Log in failed.");
+  });
+});
+$("claimCenter").addEventListener("change",fillClaimNames);
+$("btnClaim").addEventListener("click",function(){
+  api("POST","/api/me/claim",{center:$("claimCenter").value,bowlerName:$("claimName").value}).then(function(r){
+    if(r.status===200) renderMyStats(r.body);
+    else authErr("claimMsg",(r.body&&r.body.error)||"Could not link your stats.");
+  });
+});
+$("btnLogout").addEventListener("click",function(){
+  api("POST","/api/logout",{}).then(function(){ setToken(""); location.reload(); });
+});
+$("btnChangeBowler").addEventListener("click",function(){ showClaim(); });
+
+/* ----- start: signed-in bowlers land on their stats; remembered guests too ----- */
 if(window.BLS_TRIAL_RESET){ var rb=$("resetTrialBtn"); rb.style.display="inline-block"; rb.addEventListener("click",function(){ window.BLS_TRIAL_RESET(); }); }
 loadCenters().then(function(){
-  var saved=null;
-  try{ saved=localStorage.getItem("bls_bowler_id"); }catch(e){}
-  if(saved) openBowler(saved, false);
+  refreshMe().then(function(logged){
+    if(logged) return;
+    var saved=null;
+    try{ saved=localStorage.getItem("bls_bowler_id"); }catch(e){}
+    if(saved) openBowler(saved, false);
+  });
 });
 </script>
 </body>
