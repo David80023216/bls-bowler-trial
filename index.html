@@ -61,7 +61,7 @@
   <div class="sub">Find your bowling center, tap your name — your average, high game and high series are already loaded from your league's BLS stats. Nothing to sign up for.</div>
 
   <!-- STEP 1: CENTER -->
-  <div style="background:#2a2110;border:1px solid #f5b301;border-radius:10px;padding:10px 12px;margin-top:14px;font-size:13px;color:#e8dfc8">TRIAL PREVIEW — two sample centers are loaded: Ashwaubenon Bowling Alley (a real league, from its BLS standing sheet) and Demo Lanes (sample data showing the full BLS Bowler Report view, where every bowler has a high game and high series). Anything you import in this trial is saved only in your own browser.</div>
+  <div style="background:#2a2110;border:1px solid #f5b301;border-radius:10px;padding:10px 12px;margin-top:14px;font-size:13px;color:#e8dfc8">TRIAL PREVIEW (v3) — two sample centers are loaded: Ashwaubenon Bowling Alley (a real league, from its BLS standing sheet) and Demo Lanes (sample data showing the full BLS Bowler Report view, where every bowler has a high game and high series). Anything you import in this trial is saved only in your own browser.</div>
   <div class="card" id="centerCard">
     <h2>1 · Find your bowling center</h2>
     <input class="search" id="centerSearch" type="search" placeholder="Search bowling centers…">
@@ -129,6 +129,7 @@
     </div>
   </details>
 
+  <div style="text-align:center"><button id="resetTrialBtn" class="ghost" style="display:none">Seeing an old version? Tap to reset the trial</button></div>
   <footer>Your stats are loaded automatically from your league's latest BLS upload — when your secretary's newest stats go in, yours update too. High game / high series show when the upload is the BLS Bowler Report export; a standing sheet carries averages, pins and games only, so those two show “—” until a Bowler Report is loaded.</footer>
 </div>
 
@@ -356,25 +357,49 @@ if(typeof module!=="undefined" && module.exports){
  */
 var TRIAL_ADMIN_KEY = "trial-admin";
 var TRIAL_DB_KEY = "bls_trial_db_v1";
+var SEED_VERSION = 3;
+var SEED_LEAGUE_NAMES = ["Women's Classic 2026-27 (sample)", "Demo League — full stats sample", "Wednesday Demo League"];
 var trialDb = null;
 
 function tNorm(s) { return String(s || "").toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim(); }
 function tUid() { return Math.random().toString(16).slice(2) + Date.now().toString(16); }
 function tSave() { try { localStorage.setItem(TRIAL_DB_KEY, JSON.stringify(trialDb)); } catch (e) {} }
+function tSeedSamples() {
+  tImport({ centerName: "Ashwaubenon Bowling Alley", leagueName: "Women's Classic 2026-27 (sample)", text: SEED_CSV, filename: "seed-league.csv" });
+  if (typeof SEED_DEMO_CSV !== "undefined") {
+    tImport({ centerName: "Demo Lanes (sample data)", leagueName: "Demo League — full stats sample", text: SEED_DEMO_CSV, filename: "seed-demo.csv" });
+  }
+  if (typeof SEED_DEMO2_CSV !== "undefined") {
+    tImport({ centerName: "Demo Lanes (sample data)", leagueName: "Wednesday Demo League", text: SEED_DEMO2_CSV, filename: "seed-demo2.csv" });
+  }
+}
 function tLoad() {
   if (trialDb) return;
   try { trialDb = JSON.parse(localStorage.getItem(TRIAL_DB_KEY)); } catch (e) { trialDb = null; }
-  if (!trialDb || !Array.isArray(trialDb.leagues)) {
-    trialDb = { leagues: [], bowlers: [] };
-    tImport({ centerName: "Ashwaubenon Bowling Alley", leagueName: "Women's Classic 2026-27 (sample)", text: SEED_CSV, filename: "seed-league.csv" });
-    if (typeof SEED_DEMO_CSV !== "undefined") {
-      tImport({ centerName: "Demo Lanes (sample data)", leagueName: "Demo League — full stats sample", text: SEED_DEMO_CSV, filename: "seed-demo.csv" });
-    }
-    if (typeof SEED_DEMO2_CSV !== "undefined") {
-      tImport({ centerName: "Demo Lanes (sample data)", leagueName: "Wednesday Demo League", text: SEED_DEMO2_CSV, filename: "seed-demo2.csv" });
-    }
+  if (!trialDb || !Array.isArray(trialDb.leagues) || !Array.isArray(trialDb.bowlers)) {
+    trialDb = { leagues: [], bowlers: [], seedVersion: SEED_VERSION };
+    tSeedSamples();
+    tSave();
+    return;
+  }
+  if (trialDb.seedVersion !== SEED_VERSION) {
+    // refresh ONLY the built-in sample leagues; keep anything the visitor imported
+    var doomed = {};
+    trialDb.leagues.forEach(function (l) { if (SEED_LEAGUE_NAMES.indexOf(l.name) >= 0) doomed[l.id] = true; });
+    trialDb.leagues = trialDb.leagues.filter(function (l) { return !doomed[l.id]; });
+    trialDb.bowlers = trialDb.bowlers.filter(function (b) { return !doomed[b.leagueId]; });
+    tSeedSamples();
+    trialDb.seedVersion = SEED_VERSION;
     tSave();
   }
+}
+function resetTrialData() {
+  trialDb = null;
+  try {
+    localStorage.removeItem(TRIAL_DB_KEY);
+    localStorage.removeItem("bls_bowler_id");
+  } catch (e) {}
+  location.reload();
 }
 function tImport(opts) {
   var res = parseAny(opts.text, opts.filename || "");
@@ -489,6 +514,7 @@ function tRoute(method, path, body) {
 function api(method, path, body) {
   return new Promise(function (resolve) { tLoad(); resolve(tRoute(method, path, body)); });
 }
+if (typeof window !== "undefined") window.BLS_TRIAL_RESET = resetTrialData;
 if (typeof module !== "undefined" && module.exports) {
   module.exports = { api: api, _setDb: function (d) { trialDb = d; }, _getDb: function () { return trialDb; } };
 }
@@ -585,7 +611,7 @@ $("backCenters").addEventListener("click",function(){
 /* ----- step 3: your stats ----- */
 function openBowler(id, remember){
   api("GET","/api/bowler/"+id).then(function(r){
-    if(r.status!==200) return;
+    if(r.status!==200){ try{ localStorage.removeItem("bls_bowler_id"); }catch(e){} return; }
     if(remember){
       try{ localStorage.setItem("bls_bowler_id", id); }catch(e){}
     }
@@ -662,6 +688,7 @@ $("admBtn").addEventListener("click",function(){
 });
 
 /* ----- start: remembered bowler goes straight to their stats ----- */
+if(window.BLS_TRIAL_RESET){ var rb=$("resetTrialBtn"); rb.style.display="inline-block"; rb.addEventListener("click",function(){ window.BLS_TRIAL_RESET(); }); }
 loadCenters().then(function(){
   var saved=null;
   try{ saved=localStorage.getItem("bls_bowler_id"); }catch(e){}
